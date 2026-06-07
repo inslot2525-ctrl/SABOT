@@ -98,54 +98,6 @@ Company
 
 for follow-up by the sales team.
 
-🏗 Architecture
-                    ┌─────────────────────┐
-                    │   PDF Documents     │
-                    └──────────┬──────────┘
-                               │
-                               ▼
-                  ┌─────────────────────────┐
-                  │ Document Ingestion      │
-                  │ PDF Extraction          │
-                  └──────────┬──────────────┘
-                             │
-                             ▼
-                  ┌─────────────────────────┐
-                  │ Text Chunking           │
-                  │ LangChain Splitter      │
-                  └──────────┬──────────────┘
-                             │
-                             ▼
-                  ┌─────────────────────────┐
-                  │ Embedding Generation    │
-                  │ MiniLM Transformer      │
-                  └──────────┬──────────────┘
-                             │
-                             ▼
-                  ┌─────────────────────────┐
-                  │ FAISS Vector Store      │
-                  └──────────┬──────────────┘
-                             │
-                             ▼
-                     User Question
-                             │
-                             ▼
-                  ┌─────────────────────────┐
-                  │ Semantic Retrieval      │
-                  └──────────┬──────────────┘
-                             │
-                             ▼
-                  ┌─────────────────────────┐
-                  │ Context Construction    │
-                  └──────────┬──────────────┘
-                             │
-                             ▼
-                  ┌─────────────────────────┐
-                  │ Response Generation     │
-                  └──────────┬──────────────┘
-                             │
-                             ▼
-                       Final Answer
 ⚙ Technology Stack
 Layer	Technology
 Frontend	Streamlit
