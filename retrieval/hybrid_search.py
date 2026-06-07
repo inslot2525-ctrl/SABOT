@@ -2,38 +2,62 @@ import faiss
 import pickle
 import numpy as np
 
-from ingestion.embed import get_embedding
+from ingestion.embed import get_embeddings
+
 from config.settings import (
     FAISS_INDEX_PATH,
     METADATA_PATH
 )
 
-index = faiss.read_index(
-    FAISS_INDEX_PATH
-)
 
-with open(METADATA_PATH, "rb") as f:
-    metadata = pickle.load(f)
+def load_index():
+
+    return faiss.read_index(
+        FAISS_INDEX_PATH
+    )
 
 
-def search(query, top_k=5):
+def load_metadata():
 
-    vector = np.array(
-        [get_embedding(query)],
+    with open(
+        METADATA_PATH,
+        "rb"
+    ) as f:
+
+        return pickle.load(f)
+
+
+def search(
+    query,
+    top_k=5
+):
+
+    index = load_index()
+
+    metadata = load_metadata()
+
+    query_embedding = np.array(
+        [get_embeddings(query)],
         dtype=np.float32
     )
 
     distances, indices = index.search(
-        vector,
+        query_embedding,
         top_k
     )
 
     results = []
 
-    for idx in indices[0]:
+    for i, idx in enumerate(indices[0]):
 
-        results.append(
-            metadata[idx]
-        )
+        if idx < len(metadata):
+
+            doc = metadata[idx].copy()
+
+            doc["distance"] = float(
+                distances[0][i]
+            )
+
+            results.append(doc)
 
     return results

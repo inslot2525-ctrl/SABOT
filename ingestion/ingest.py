@@ -1,73 +1,171 @@
+from pathlib import Path
+from pypdf import PdfReader
 import faiss
 import numpy as np
 import pickle
-from pathlib import Path
-
-from pypdf import PdfReader
 
 from ingestion.chunk import chunk_text
-from ingestion.embed import get_embedding
+from ingestion.embed import get_embeddings
 
-INDEX_PATH = "storage/faiss_index/sales.index"
-META_PATH = "storage/metadata/chunks.pkl"
-
-all_embeddings = []
-all_metadata = []
+UPLOAD_DIR = "uploads"
+INDEX_DIR = "vectorstore"
 
 
-def read_pdf(path):
-
-    pdf = PdfReader(path)
+def read_pdf(pdf_path):
 
     text = ""
 
-    for page in pdf.pages:
+    try:
 
-        page_text = page.extract_text()
+        pdf = PdfReader(pdf_path)
 
-        if page_text:
-            text += page_text
+        for page_num, page in enumerate(pdf.pages):
+
+            page_text = page.extract_text()
+
+            if page_text:
+
+                print(
+                    f"\n--- PAGE {page_num + 1} ({pdf_path.name}) ---\n"
+                )
+
+                print(
+                    page_text[:500]
+                )
+
+                print(
+                    "\n-----------------------------------\n"
+                )
+
+                text += page_text + "\n"
+
+    except Exception as e:
+
+        print(
+            f"Error reading {pdf_path}: {e}"
+        )
 
     return text
 
 
-for pdf_file in Path("data").glob("*.pdf"):
+def build_index():
 
-    if pdf_file.stat().st_size == 0:
-        print(f"Skipping empty file: {pdf_file.name}")
-        continue
+    Path(INDEX_DIR).mkdir(
+        parents=True,
+        exist_ok=True
+    )
 
-    text = read_pdf(pdf_file)
+    all_chunks = []
+    metadata = []
 
-    chunks = chunk_text(text)
+    pdf_files = list(
+        Path(UPLOAD_DIR).glob("*.pdf")
+    )
 
-    for chunk in chunks:
+    if len(pdf_files) == 0:
 
-        embedding = get_embedding(chunk)
-
-        all_embeddings.append(embedding)
-
-        all_metadata.append(
-            {
-                "text": chunk,
-                "source": pdf_file.name
-            }
+        print(
+            "No PDFs found."
         )
 
-embeddings = np.array(
-    all_embeddings,
-    dtype=np.float32
-)
+        return
 
-dimension = embeddings.shape[1]
+    for pdf_file in pdf_files:
 
-index = faiss.IndexFlatL2(dimension)
+        print(
+            f"Processing: {pdf_file.name}"
+        )
 
-index.add(embeddings)
+        text = read_pdf(pdf_file)
+        print("\nFIRST 500 CHARS:")
+        print(text[:500])
+        print("\n")
+        
 
-faiss.write_index(index, INDEX_PATH)
+        if not text.strip():
 
-with open(META_PATH, "wb") as f:
-    pickle.dump(all_metadata, f)
+            print(
+                f"Skipping empty file: {pdf_file.name}"
+            )
 
-print("FAISS index created.")
+            continue
+
+        text = text.replace(
+            "\n",
+            " "
+        )
+
+        text = " ".join(
+            text.split()
+        )
+
+        chunks = chunk_text(text)
+
+        for chunk in chunks:
+
+            if len(chunk.strip()) < 50:
+                continue
+
+            all_chunks.append(chunk)
+
+            metadata.append(
+                {
+                    "source": pdf_file.name,
+                    "text": chunk
+                }
+            )
+
+    if len(all_chunks) == 0:
+
+        print(
+            "No valid chunks found."
+        )
+
+        return
+
+    print(
+        f"Total chunks: {len(all_chunks)}"
+    )
+
+    embeddings = get_embeddings(
+        all_chunks
+    )
+
+    embeddings = np.array(
+        embeddings,
+        dtype=np.float32
+    )
+
+    dimension = embeddings.shape[1]
+
+    index = faiss.IndexFlatL2(
+        dimension
+    )
+
+    index.add(
+        embeddings
+    )
+
+    faiss.write_index(
+        index,
+        f"{INDEX_DIR}/faiss_index.bin"
+    )
+
+    with open(
+        f"{INDEX_DIR}/metadata.pkl",
+        "wb"
+    ) as f:
+
+        pickle.dump(
+            metadata,
+            f
+        )
+
+    print(
+        "FAISS index created successfully."
+    )
+
+
+if __name__ == "__main__":
+
+    build_index()

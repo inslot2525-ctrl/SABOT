@@ -1,48 +1,51 @@
-import google.generativeai as genai
+def classify_intent(query):
 
-from config.settings import GEMINI_API_KEY
+    query = query.lower()
 
-genai.configure(api_key=GEMINI_API_KEY)
+    if any(
+        word in query
+        for word in [
+            "price",
+            "pricing",
+            "cost",
+            "subscription",
+            "plan"
+        ]
+    ):
+        return "pricing"
 
-model = genai.GenerativeModel("gemini-2.5-flash")
+    if any(
+        word in query
+        for word in [
+            "competitor",
+            "compare",
+            "alternative",
+            "vs"
+        ]
+    ):
+        return "competitor"
 
+    if any(
+        word in query
+        for word in [
+            "problem",
+            "issue",
+            "concern",
+            "risk"
+        ]
+    ):
+        return "objection"
 
-def classify_intent(query: str) -> str:
+    if any(
+        word in query
+        for word in [
+            "demo",
+            "buy",
+            "purchase",
+            "interested",
+            "contact sales"
+        ]
+    ):
+        return "closing"
 
-    prompt = f"""
-You are an intent classifier.
-
-Possible intents:
-
-pricing
-objection
-competitor
-feature
-closing
-
-Examples:
-
-Question: What are your pricing plans?
-Intent: pricing
-
-Question: Your competitor is cheaper.
-Intent: competitor
-
-Question: I am not sure your solution is reliable.
-Intent: objection
-
-Question: Does your platform support API integration?
-Intent: feature
-
-Question: I want to schedule a demo.
-Intent: closing
-
-Question:
-{query}
-
-Return ONLY the intent label.
-"""
-
-    response = model.generate_content(prompt)
-
-    return response.text.strip().lower()
+    return "feature"

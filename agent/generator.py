@@ -1,37 +1,106 @@
-import google.generativeai as genai
-
-from config.settings import GEMINI_API_KEY
-
-genai.configure(api_key=GEMINI_API_KEY)
-
-model = genai.GenerativeModel(
-    "gemini-2.5-flash"
-)
+import re
 
 
-def generate_answer(query, context):
+def clean_text(text):
 
-    prompt = f"""
-You are a senior B2B SaaS sales representative.
+    text = re.sub(
+        r"\s+",
+        " ",
+        text
+    )
 
-Answer ONLY using the provided context.
+    text = text.replace(
+        "",
+        ""
+    )
 
-If the answer is not present in the context,
-say:
+    text = text.replace(
+        "•",
+        ""
+    )
 
-"I could not find that information in the knowledge base."
+    text = text.strip()
 
-Context:
+    return text
 
-{context}
 
-Question:
+def extract_key_points(
+    context,
+    max_points=6
+):
 
-{query}
+    context = clean_text(
+        context
+    )
 
-Answer:
-"""
+    sentences = re.split(
+        r"(?<=[.!?])\s+",
+        context
+    )
 
-    response = model.generate_content(prompt)
+    points = []
 
-    return response.text
+    seen = set()
+
+    for sentence in sentences:
+
+        sentence = sentence.strip()
+
+        if len(sentence) < 40:
+            continue
+
+        if len(sentence) > 250:
+            continue
+
+        key = sentence.lower()
+
+        if key in seen:
+            continue
+
+        seen.add(key)
+
+        points.append(sentence)
+
+        if len(points) >= max_points:
+            break
+
+    return points
+
+
+def generate_answer(
+    query,
+    context,
+    intent="feature"
+):
+
+    if not context.strip():
+
+        return (
+            "I could not find relevant information "
+            "in the uploaded documents."
+        )
+
+    points = extract_key_points(
+        context
+    )
+
+    if len(points) == 0:
+
+        return (
+            "I could not find relevant information "
+            "in the uploaded documents."
+        )
+
+    answer = "## Summary\n\n"
+
+    for point in points:
+
+        answer += f"• {point}\n\n"
+
+    answer += "\n---\n"
+
+    answer += (
+        "Source: Retrieved from uploaded documents."
+    )
+
+    return answer
